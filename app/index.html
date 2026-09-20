@@ -1,0 +1,1558 @@
+<!DOCTYPE html>
+<html lang="el"> 
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Governor — AI Control Center</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:         #000;
+            --bg-card:    #1c1c1e;
+            --bg-input:   #2c2c2e;
+            --bg-bubble:  #1c1c1e;
+            --border:     #2c2c2e;
+            --border-dim: #1c1c1e;
+            --text-1:     #f5f5f7;
+            --text-2:     #aeaeb2;
+            --text-3:     #636366;
+            --accent:     #0a84ff;
+            --green:      #30d158;
+            --yellow:     #ffd60a;
+            --red:        #ff453a;
+            --purple:     #bf5af2;
+            --orange:     #ff9f0a;
+        }
+
+        html.light {
+            --bg:         #f2f2f7;
+            --bg-card:    #ffffff;
+            --bg-input:   #e5e5ea;
+            --bg-bubble:  #ffffff;
+            --border:     #d1d1d6;
+            --border-dim: #e5e5ea;
+            --text-1:     #1c1c1e;
+            --text-2:     #636366;
+            --text-3:     #aeaeb2;
+            --accent:     #007aff;
+            --green:      #28a745;
+            --yellow:     #f0ad00;
+            --red:        #dc3545;
+            --purple:     #a020f0;
+            --orange:     #e67e00;
+        }
+        html.light .topbar {
+            background: rgba(242,242,247,.85);
+        }
+        html.light .modal-overlay {
+            background: rgba(0,0,0,.3);
+        }
+        html.light .msg-card {
+            box-shadow: 0 1px 4px rgba(0,0,0,.08);
+        }
+        html.light .stat-pill,
+        html.light .sidebar-item {
+            box-shadow: 0 1px 3px rgba(0,0,0,.05);
+        }
+        html.light .chat-header {
+            background: rgba(242,242,247,.85);
+        }
+
+        html, body { height: 100%; overflow: hidden; }
+
+        body {
+            background: var(--bg);
+            font-family: 'Inter', -apple-system, sans-serif;
+            color: var(--text-1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ─── TOP BAR ─── */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            height: 52px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            background: rgba(0,0,0,.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 10;
+        }
+        .topbar-brand {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .topbar-logo {
+            width: 28px; height: 28px;
+            background: linear-gradient(135deg, #0a84ff, #bf5af2);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px;
+        }
+        .topbar-title {
+            font-weight: 700; font-size: .95rem;
+            letter-spacing: .04em;
+        }
+        .topbar-right { display: flex; align-items: center; gap: 14px; }
+        .live-pill {
+            display: flex; align-items: center; gap: 5px;
+            background: rgba(48,209,88,.12);
+            border: 1px solid rgba(48,209,88,.25);
+            border-radius: 20px;
+            padding: 3px 10px;
+            font-size: .7rem; font-weight: 600;
+            color: var(--green); letter-spacing: .06em;
+        }
+        .live-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 6px var(--green);
+            animation: blink 1.6s ease infinite;
+        }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+        .icon-btn {
+            background: none; border: none; cursor: pointer;
+            color: var(--text-2); font-size: .85rem;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            transition: background .15s, color .15s;
+        }
+        .icon-btn:hover { background: var(--bg-input); color: var(--text-1); }
+
+        /* ─── BODY LAYOUT ─── */
+        .app-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ─── SIDEBAR ─── */
+        .sidebar {
+            width: 300px;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            background: var(--bg);
+        }
+
+        .sidebar-header {
+            padding: 16px 16px 10px;
+            flex-shrink: 0;
+        }
+        .sidebar-header h2 {
+            font-size: .8rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: .1em;
+            color: var(--text-3); margin-bottom: 10px;
+        }
+
+        .stats-row {
+            display: grid; grid-template-columns: repeat(3,1fr); gap: 6px;
+            margin-bottom: 12px;
+        }
+        .stat-pill {
+            background: var(--bg-card);
+            border-radius: 10px;
+            padding: 8px 6px;
+            text-align: center;
+        }
+        .stat-pill .n {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.3rem; font-weight: 600; line-height: 1;
+        }
+        .stat-pill .l {
+            font-size: .6rem; color: var(--text-3);
+            text-transform: uppercase; letter-spacing: .06em;
+            margin-top: 3px;
+        }
+        .stat-pill.s-total  .n { color: var(--text-1); }
+        .stat-pill.s-pending .n { color: var(--yellow); }
+        .stat-pill.s-ok     .n { color: var(--green); }
+
+        .search-box {
+            position: relative;
+        }
+        .search-box input {
+            width: 100%;
+            background: var(--bg-input);
+            border: none; outline: none;
+            border-radius: 10px;
+            padding: 8px 12px 8px 34px;
+            font-size: .83rem;
+            color: var(--text-1);
+            font-family: 'Inter', sans-serif;
+        }
+        .search-box input::placeholder { color: var(--text-3); }
+        .search-box i {
+            position: absolute; left: 11px; top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-3); font-size: .75rem;
+        }
+
+        .sidebar-list {
+            flex: 1; overflow-y: auto;
+            padding: 4px 8px 8px;
+        }
+        .sidebar-list::-webkit-scrollbar { width: 4px; }
+        .sidebar-list::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+        .agent-row {
+            display: flex; align-items: center; gap: 11px;
+            padding: 10px 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background .15s;
+            user-select: none;
+        }
+        .agent-row:hover    { background: var(--bg-card); }
+        .agent-row.active   { background: var(--bg-input); }
+
+        .agent-av {
+            width: 44px; height: 44px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: .85rem;
+            flex-shrink: 0; position: relative;
+        }
+        .agent-av .av-inner {
+            width: 100%; height: 100%; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: .85rem;
+        }
+        /* pending ring */
+        .agent-av.has-pending::before {
+            content: '';
+            position: absolute; inset: -2px;
+            border-radius: 50%;
+            background: conic-gradient(var(--yellow) 0%, transparent 70%);
+            animation: rotate-ring 2s linear infinite;
+            z-index: -1;
+        }
+        @keyframes rotate-ring { to { transform: rotate(360deg); } }
+
+        .agent-info { flex: 1; min-width: 0; }
+        .agent-name { font-size: .875rem; font-weight: 600; truncate: ellipsis; white-space: nowrap; overflow: hidden; }
+        .agent-preview {
+            font-size: .75rem; color: var(--text-3);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            margin-top: 1px;
+        }
+
+        .agent-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+        .agent-time { font-size: .7rem; color: var(--text-3); }
+        .unread-badge {
+            background: var(--accent);
+            color: #fff;
+            font-size: .65rem; font-weight: 700;
+            min-width: 18px; height: 18px;
+            border-radius: 9px;
+            display: flex; align-items: center; justify-content: center;
+            padding: 0 5px;
+        }
+
+        .sidebar-divider {
+            height: 1px; background: var(--border);
+            margin: 4px 8px;
+        }
+
+        /* ─── CHAT PANEL ─── */
+        .chat-panel {
+            flex: 1; display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .chat-header {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            background: rgba(0,0,0,.6);
+            backdrop-filter: blur(16px);
+        }
+        .chat-header-av {
+            width: 36px; height: 36px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: .8rem;
+        }
+        .chat-header-info { flex: 1; }
+        .chat-header-name { font-weight: 700; font-size: .95rem; }
+        .chat-header-sub  { font-size: .72rem; color: var(--text-3); margin-top: 1px; }
+        .chat-header-actions { display: flex; gap: 4px; }
+
+        .messages-feed {
+            flex: 1; overflow-y: auto;
+            padding: 20px 20px 12px;
+            display: flex; flex-direction: column; gap: 16px;
+        }
+        .messages-feed::-webkit-scrollbar { width: 4px; }
+        .messages-feed::-webkit-scrollbar-track { background: transparent; }
+        .messages-feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+        /* ─── DATE SEPARATOR ─── */
+        .date-sep {
+            display: flex; align-items: center; gap: 10px;
+            color: var(--text-3); font-size: .72rem;
+        }
+        .date-sep::before, .date-sep::after {
+            content: ''; flex: 1; height: 1px; background: var(--border);
+        }
+
+        /* ─── MESSAGE ─── */
+        .msg-row {
+            display: flex; align-items: flex-end; gap: 10px;
+        }
+
+        .msg-av {
+            width: 32px; height: 32px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: .7rem; font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .msg-content { max-width: 460px; }
+
+        .msg-sender {
+            font-size: .7rem; color: var(--text-3);
+            margin-bottom: 4px; padding-left: 2px;
+        }
+
+        .msg-bubble {
+            background: var(--bg-card);
+            border-radius: 18px 18px 18px 4px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        /* ─── APP ICON BAR ─── */
+        .app-bar {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 14px 8px;
+            border-bottom: 1px solid var(--border-dim);
+        }
+        .app-icon {
+            width: 36px; height: 36px; border-radius: 9px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; flex-shrink: 0;
+        }
+        .app-icon-info { flex: 1; min-width: 0; }
+        .app-icon-name {
+            font-size: .78rem; font-weight: 700;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .app-icon-sub {
+            font-size: .65rem; color: var(--text-3); margin-top: 1px;
+        }
+        .platform-badge {
+            display: flex; align-items: center; gap: 5px;
+            border-radius: 7px;
+            padding: 4px 8px;
+            font-size: .68rem; font-weight: 600;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        /* ─── MESSAGE BODY ─── */
+        .msg-body { padding: 10px 14px 12px; }
+        .msg-intent {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .82rem; font-weight: 600;
+            color: var(--text-1);
+        }
+        .msg-meta {
+            margin-top: 6px;
+            display: flex; flex-wrap: wrap; gap: 5px;
+        }
+        .meta-chip {
+            background: var(--bg-input);
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: .7rem; font-family: 'JetBrains Mono', monospace;
+            color: var(--text-2);
+        }
+
+        /* ─── MESSAGE FOOTER ─── */
+        .msg-footer {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 6px 14px 8px;
+            border-top: 1px solid var(--border-dim);
+        }
+        .msg-time { font-size: .67rem; color: var(--text-3); }
+        .msg-status { display: flex; align-items: center; gap: 5px; font-size: .7rem; font-weight: 600; }
+        .msg-status.st-pending  { color: var(--yellow); }
+        .msg-status.st-approved { color: var(--green); }
+        .msg-status.st-auto     { color: var(--accent); }
+        .msg-status.st-rejected { color: var(--red); }
+        .msg-status.st-timeout  { color: var(--text-3); }
+
+        .pending-dots {
+            display: inline-flex; gap: 3px; align-items: center;
+        }
+        .pending-dots span {
+            width: 4px; height: 4px; border-radius: 50%;
+            background: var(--yellow);
+            animation: bounce-dot 1.2s ease infinite;
+        }
+        .pending-dots span:nth-child(2) { animation-delay: .15s; }
+        .pending-dots span:nth-child(3) { animation-delay: .3s; }
+        @keyframes bounce-dot {
+            0%,80%,100% { transform: scale(.6); opacity:.4; }
+            40%         { transform: scale(1);  opacity:1;  }
+        }
+
+        /* ─── EMPTY / LOADING ─── */
+        .feed-empty {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            color: var(--text-3); gap: 10px;
+        }
+        .feed-empty i { font-size: 2.2rem; }
+        .feed-empty p { font-size: .875rem; }
+
+        /* ─── FAKE INPUT BAR ─── */
+        .input-bar {
+            padding: 10px 16px;
+            border-top: 1px solid var(--border);
+            display: flex; align-items: center; gap: 10px;
+            flex-shrink: 0;
+        }
+        .input-fake {
+            flex: 1; background: var(--bg-input);
+            border-radius: 22px; padding: 10px 16px;
+            font-size: .83rem; color: var(--text-3);
+            cursor: default; user-select: none;
+        }
+        .input-bar-icon { color: var(--accent); font-size: 1.1rem; cursor: default; }
+
+        /* ─── ACTION BUTTONS ─── */
+        .action-bar {
+            display: flex; gap: 8px;
+            padding: 8px 14px 10px;
+            border-top: 1px solid var(--border-dim);
+        }
+        .action-btn {
+            flex: 1; border: none; border-radius: 10px;
+            padding: 9px 0; font-size: .78rem; font-weight: 700;
+            cursor: pointer; transition: opacity .15s, transform .1s;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            font-family: 'Inter', sans-serif;
+        }
+        .action-btn:hover { opacity: .85; }
+        .action-btn:active { transform: scale(.97); }
+        .action-btn.btn-approve { background: var(--green); color: #fff; }
+        .action-btn.btn-reject  { background: var(--red);   color: #fff; }
+        .action-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+        .msg-context {
+            font-size: .75rem; color: var(--text-2);
+            margin-top: 4px; font-style: italic;
+        }
+
+        .blast-radius-box {
+            margin-top: 8px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: .75rem;
+            font-weight: 600;
+            line-height: 1.4;
+            border-left: 3px solid var(--orange);
+            background: rgba(255,159,10,.08);
+            color: var(--text-1);
+        }
+
+        /* ─── STAR / FAVORITE ─── */
+        .msg-star {
+            position: absolute; top: 8px; right: 10px;
+            background: none; border: none; cursor: pointer;
+            font-size: .8rem; color: var(--text-3);
+            transition: color .15s, transform .15s;
+            z-index: 2;
+        }
+        .msg-star:hover { color: var(--yellow); transform: scale(1.2); }
+        .msg-star.starred { color: var(--yellow); }
+        .msg-bubble { position: relative; }
+
+        /* ─── SLA WARNING ─── */
+        .msg-bubble.sla-warn {
+            border-color: var(--orange);
+            box-shadow: 0 0 12px rgba(255,159,10,.15);
+        }
+        .msg-bubble.sla-critical {
+            border-color: var(--red);
+            animation: sla-pulse 1.5s ease infinite;
+        }
+        @keyframes sla-pulse {
+            0%,100% { box-shadow: 0 0 8px rgba(255,69,58,.15); }
+            50%     { box-shadow: 0 0 20px rgba(255,69,58,.35); }
+        }
+        .sla-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: .6rem; font-weight: 700;
+            padding: 2px 6px; border-radius: 4px;
+            margin-left: 6px;
+        }
+        .sla-badge.warn     { background: rgba(255,159,10,.15); color: var(--orange); }
+        .sla-badge.critical { background: rgba(255,69,58,.15);  color: var(--red); }
+
+        /* ─── BULK SELECT ─── */
+        .msg-checkbox {
+            appearance: none; -webkit-appearance: none;
+            width: 18px; height: 18px; border-radius: 5px;
+            border: 1.5px solid var(--text-3);
+            background: transparent; cursor: pointer;
+            flex-shrink: 0; margin-bottom: 6px;
+            transition: background .15s, border-color .15s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .msg-checkbox:checked {
+            background: var(--accent); border-color: var(--accent);
+        }
+        .msg-checkbox:checked::after {
+            content: '\f00c'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
+            font-size: .55rem; color: #fff;
+        }
+
+        .bulk-bar {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: var(--accent); color: #fff;
+            border-radius: 14px; padding: 10px 20px;
+            display: flex; align-items: center; gap: 12px;
+            font-size: .82rem; font-weight: 600;
+            box-shadow: 0 8px 30px rgba(10,132,255,.35);
+            z-index: 100;
+            animation: slide-up .25s ease;
+        }
+        @keyframes slide-up {
+            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        .bulk-bar button {
+            border: none; border-radius: 8px; padding: 7px 14px;
+            font-size: .78rem; font-weight: 700; cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: opacity .15s;
+        }
+        .bulk-bar button:hover { opacity: .85; }
+        .bulk-bar .bulk-approve { background: var(--green); color: #fff; }
+        .bulk-bar .bulk-reject  { background: var(--red);   color: #fff; }
+        .bulk-bar .bulk-cancel  { background: var(--bg-input); color: var(--text-2); }
+
+        /* ─── CHAT HEADER FILTER BTNS ─── */
+        .filter-btn {
+            background: var(--bg-input); border: none; cursor: pointer;
+            color: var(--text-3); font-size: .72rem; font-weight: 600;
+            padding: 5px 10px; border-radius: 8px;
+            transition: background .15s, color .15s;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .filter-btn:hover { color: var(--text-1); background: var(--border); }
+        .filter-btn.active { color: var(--yellow); background: rgba(255,214,10,.12); }
+
+        /* ─── ESCALATED STATUS ─── */
+        .msg-status.st-escalated { color: var(--orange); }
+        .msg-bubble.sla-escalated {
+            border-color: var(--orange);
+            animation: sla-pulse-orange 1.5s ease infinite;
+        }
+        @keyframes sla-pulse-orange {
+            0%,100% { box-shadow: 0 0 8px rgba(255,159,10,.15); }
+            50%     { box-shadow: 0 0 22px rgba(255,159,10,.4); }
+        }
+
+        /* ─── TRUST BAR ─── */
+        .trust-bar-wrap {
+            display: flex; align-items: center; gap: 6px;
+            margin-top: 3px;
+        }
+        .trust-bar {
+            width: 50px; height: 5px; border-radius: 3px;
+            background: var(--bg-input); overflow: hidden;
+        }
+        .trust-bar-fill {
+            height: 100%; border-radius: 3px;
+            transition: width .4s ease;
+        }
+        .trust-score-label {
+            font-size: .6rem; font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ─── PAYLOAD MODAL ─── */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,.7);
+            backdrop-filter: blur(6px);
+            z-index: 200;
+            display: flex; align-items: center; justify-content: center;
+            animation: fade-in .15s ease;
+        }
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        .modal-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: 560px; max-width: 90vw; max-height: 80vh;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 18px; border-bottom: 1px solid var(--border);
+        }
+        .modal-header h3 {
+            font-size: .9rem; font-weight: 700;
+        }
+        .modal-close {
+            background: none; border: none; color: var(--text-3);
+            cursor: pointer; font-size: 1rem;
+            width: 30px; height: 30px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            transition: background .15s;
+        }
+        .modal-close:hover { background: var(--bg-input); color: var(--text-1); }
+        .modal-body {
+            padding: 18px; overflow-y: auto; flex: 1;
+        }
+        .modal-section {
+            margin-bottom: 16px;
+        }
+        .modal-section-title {
+            font-size: .7rem; font-weight: 700; color: var(--text-3);
+            text-transform: uppercase; letter-spacing: .08em;
+            margin-bottom: 8px;
+        }
+        .modal-json {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 10px; padding: 12px 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .75rem; color: var(--text-2);
+            white-space: pre-wrap; word-break: break-all;
+            line-height: 1.5;
+        }
+        .modal-json .json-key { color: var(--accent); }
+        .modal-json .json-str { color: var(--green); }
+        .modal-json .json-num { color: var(--orange); }
+        .modal-json .json-bool { color: var(--purple); }
+        .modal-field {
+            display: flex; gap: 8px; margin-bottom: 6px;
+            font-size: .78rem;
+        }
+        .modal-field-label {
+            color: var(--text-3); min-width: 90px; font-weight: 600;
+        }
+        .modal-field-value { color: var(--text-1); }
+
+        /* ─── SIMULATOR PANEL ─── */
+        .sim-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px; margin: 12px 20px;
+        }
+        .sim-panel h3 {
+            font-size: .85rem; font-weight: 700; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .sim-panel h3 i { color: var(--purple); }
+        .sim-form {
+            display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;
+        }
+        .sim-input {
+            background: var(--bg-input); border: 1px solid var(--border);
+            border-radius: 8px; padding: 8px 12px;
+            font-size: .8rem; color: var(--text-1);
+            font-family: 'Inter', sans-serif;
+            outline: none; flex: 1; min-width: 120px;
+        }
+        .sim-input:focus { border-color: var(--accent); }
+        .sim-btn {
+            background: var(--purple); color: #fff; border: none;
+            border-radius: 8px; padding: 8px 16px;
+            font-size: .78rem; font-weight: 700; cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: opacity .15s;
+        }
+        .sim-btn:hover { opacity: .85; }
+        .sim-result {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 10px; padding: 14px;
+            font-size: .78rem; display: none;
+        }
+        .sim-result.show { display: block; }
+        .sim-verdict {
+            font-size: .9rem; font-weight: 700; margin-bottom: 8px;
+        }
+        .sim-verdict.v-approved { color: var(--green); }
+        .sim-verdict.v-pending { color: var(--yellow); }
+        .sim-rule {
+            background: var(--bg-input); border-radius: 8px;
+            padding: 8px 12px; margin-top: 8px;
+            font-size: .75rem;
+        }
+        .sim-rule-name { font-weight: 700; color: var(--accent); }
+        .sim-rule-detail { color: var(--text-2); margin-top: 2px; }
+        .sim-rule-match { font-weight: 700; }
+        .sim-rule-match.yes { color: var(--green); }
+        .sim-rule-match.no { color: var(--red); }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { animation: spin .6s linear infinite; display: inline-block; }
+
+        /* ─── MOBILE HAMBURGER ─── */
+        .mobile-menu-btn {
+            display: none;
+            background: none; border: none; cursor: pointer;
+            color: var(--text-2); font-size: 1.1rem;
+            width: 36px; height: 36px; border-radius: 50%;
+            align-items: center; justify-content: center;
+            transition: background .15s;
+        }
+        .mobile-menu-btn:hover { background: var(--bg-input); }
+        .sidebar-overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,.5); z-index: 49;
+        }
+        .mobile-back-btn {
+            display: none;
+            background: none; border: none; cursor: pointer;
+            color: var(--text-2); font-size: 1rem;
+            margin-right: 4px;
+        }
+
+        /* ─── RESPONSIVE: MOBILE ─── */
+        @media (max-width: 768px) {
+            .topbar { padding: 0 12px; height: 48px; }
+            .topbar-title { font-size: .85rem; }
+            .mobile-menu-btn { display: flex; }
+            .live-pill { padding: 2px 8px; font-size: .6rem; }
+
+            .sidebar {
+                position: fixed; top: 48px; left: 0; bottom: 0;
+                width: 85vw; max-width: 320px;
+                z-index: 50;
+                transform: translateX(-100%);
+                transition: transform .25s ease;
+                box-shadow: 4px 0 20px rgba(0,0,0,.3);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .sidebar-overlay.open {
+                display: block;
+            }
+
+            .chat-panel { width: 100%; }
+            .chat-header { padding: 10px 12px; gap: 8px; }
+            .mobile-back-btn { display: inline-block; }
+
+            .messages-feed { padding: 12px !important; }
+            .msg-content { max-width: 100% !important; }
+            .msg-bubble { border-radius: 14px 14px 14px 4px; }
+
+            .app-bar { padding: 10px 12px 6px; gap: 8px; }
+            .app-icon { width: 30px; height: 30px; font-size: 13px; }
+            .app-icon-name { font-size: .72rem; }
+            .app-icon-sub { font-size: .6rem; }
+
+            .msg-body { padding: 8px 12px !important; }
+            .msg-footer { padding: 6px 12px 8px !important; font-size: .65rem; }
+
+            .action-bar { padding: 8px 12px !important; }
+            .action-btn { padding: 8px 16px !important; font-size: .75rem !important; }
+
+            .stat-pill .n { font-size: 1.1rem; }
+            .stat-pill .l { font-size: .55rem; }
+
+            .modal-content { width: 95vw !important; max-height: 85vh !important; }
+
+            .platform-badge { padding: 3px 6px; font-size: .6rem; }
+
+            .bulk-bar {
+                left: 5% !important; right: 5% !important;
+                bottom: 10px !important; border-radius: 14px !important;
+                padding: 10px !important;
+            }
+
+            .sim-panel {
+                left: 5% !important; right: 5% !important;
+                bottom: 10px !important; border-radius: 14px !important;
+                width: auto !important;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .topbar-right { gap: 8px; }
+            .live-pill { display: none; }
+            .stat-pill .n { font-size: .95rem; }
+            .sidebar { width: 90vw; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+    <div class="topbar-brand">
+        <div class="topbar-logo"><i class="fas fa-shield-halved" style="color:#fff;font-size:13px"></i></div>
+        <span class="topbar-title">Governor</span>
+    </div>
+    <button class="mobile-menu-btn" onclick="toggleSidebar()" title="Menu">
+        <i class="fas fa-bars"></i>
+    </button>
+    <div class="topbar-right">
+        <div class="live-pill"><div class="live-dot"></div>LIVE</div>
+        <button class="icon-btn" onclick="fetchRequests()" title="Refresh">
+            <i class="fas fa-rotate-right" id="refresh-icon"></i>
+        </button>
+        <button class="icon-btn" onclick="toggleTheme()" id="theme-toggle" title="Toggle light/dark mode">
+            <i class="fas fa-moon"></i>
+        </button>
+    </div>
+</div>
+
+<div class="app-body">
+
+    <!-- SIDEBAR OVERLAY (mobile) -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2>Agents</h2>
+            <div class="stats-row">
+                <div class="stat-pill s-total">
+                    <div class="n" id="stat-total">—</div>
+                    <div class="l">Total</div>
+                </div>
+                <div class="stat-pill s-pending">
+                    <div class="n" id="stat-pending">—</div>
+                    <div class="l">Pending</div>
+                </div>
+                <div class="stat-pill s-ok">
+                    <div class="n" id="stat-ok">—</div>
+                    <div class="l">Approved</div>
+                </div>
+            </div>
+            <div class="search-box">
+                <i class="fas fa-magnifying-glass"></i>
+                <input type="text" id="search-input" placeholder="Search agents..." oninput="filterAgents(this.value)">
+            </div>
+        </div>
+
+        <div class="sidebar-list" id="agent-list"></div>
+    </div>
+
+    <!-- CHAT PANEL -->
+    <div class="chat-panel">
+        <div class="chat-header" id="chat-header">
+            <div class="feed-empty" style="flex-direction:row;justify-content:flex-start;padding:0;gap:10px;color:var(--text-3)">
+                <i class="fas fa-robot" style="font-size:1rem"></i>
+                <span style="font-size:.85rem">Select an agent from the left</span>
+            </div>
+        </div>
+
+        <div class="messages-feed" id="messages-feed">
+            <div class="feed-empty">
+                <i class="fas fa-circle-notch spin" style="color:var(--accent)"></i>
+                <p>Loading data...</p>
+            </div>
+        </div>
+
+        <!-- Simulator Panel -->
+        <div class="sim-panel" id="sim-panel" style="display:none">
+            <h3><i class="fas fa-flask"></i> Policy Simulator</h3>
+            <div class="sim-form">
+                <input class="sim-input" id="sim-intent" placeholder="Intent (e.g. refund_customer)">
+                <input class="sim-input" id="sim-amount" placeholder="Amount (optional)" type="number">
+                <button class="sim-btn" onclick="runSimulation()"><i class="fas fa-play"></i> Simulate</button>
+            </div>
+            <div class="sim-result" id="sim-result"></div>
+        </div>
+
+        <div class="input-bar">
+            <i class="fas fa-circle-plus input-bar-icon"></i>
+            <div class="input-fake">Requests arrive automatically from AI agents via MCP...</div>
+            <button class="icon-btn" onclick="toggleSimulator()" title="Policy Simulator" style="color:var(--purple);font-size:.9rem">
+                <i class="fas fa-flask"></i>
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<!-- Payload Detail Modal -->
+<div class="modal-overlay" id="payload-modal" style="display:none" onclick="if(event.target===this)closeModal()">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3><i class="fas fa-code" style="color:var(--accent);margin-right:6px"></i> Request Details</h3>
+            <button class="modal-close" onclick="closeModal()"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="modal-body" id="modal-body"></div>
+    </div>
+</div>
+
+<!-- Bulk actions floating bar (hidden by default) -->
+<div class="bulk-bar" id="bulk-bar" style="display:none">
+    <span id="bulk-count">0 selected</span>
+    <button class="bulk-approve" onclick="bulkResolve('approve')"><i class="fas fa-check"></i> Approve</button>
+    <button class="bulk-reject" onclick="bulkResolve('reject')"><i class="fas fa-xmark"></i> Reject</button>
+    <button class="bulk-cancel" onclick="clearSelection()"><i class="fas fa-times"></i></button>
+</div>
+
+<script>
+// ─── Theme ───
+function initTheme() {
+    const saved = localStorage.getItem('gov_theme');
+    if (saved === 'light') document.documentElement.classList.add('light');
+    updateThemeIcon();
+}
+function toggleTheme() {
+    document.documentElement.classList.toggle('light');
+    const isLight = document.documentElement.classList.contains('light');
+    localStorage.setItem('gov_theme', isLight ? 'light' : 'dark');
+    updateThemeIcon();
+}
+function updateThemeIcon() {
+    const btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    const isLight = document.documentElement.classList.contains('light');
+    btn.innerHTML = isLight
+        ? '<i class="fas fa-sun" style="color:#f0ad00"></i>'
+        : '<i class="fas fa-moon"></i>';
+    btn.title = isLight ? 'Switch to dark mode' : 'Switch to light mode';
+}
+initTheme();
+
+// ─── Mobile sidebar ───
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+}
+
+const API_BASE = window.location.origin?.startsWith('http')
+    ? window.location.origin
+    : 'http://127.0.0.1:9090';
+const API_URL = `${API_BASE}/api/v1/requests`;
+
+// ─── State ───
+let allRequests = [];
+let selectedAgent = null;
+const favorites = new Set(JSON.parse(localStorage.getItem('gov_favorites') || '[]'));
+let showFavoritesOnly = false;
+const selectedIds = new Set();
+const SLA_WARN_SEC = 30;
+const SLA_CRIT_SEC = 40;
+let trustScores = {};
+
+// ─── Mock data ───
+const mockData = [
+    { id: "a3f2c9d1-e4b5-48fa-9912-cc1d2e3f4a5b", created_at: new Date().toISOString(),
+      agent_id: "FinanceBot_v2",  intent: "refund_customer",  status: "pending",
+      handled_by: null, context_message: "Customer CX-881 requests refund of 500 EUR for order #4421",
+      metadata_payload: { amount: 500, customer_id: "CX-881", platform: "slack" } },
+    { id: "b7e1a4f3-d2c6-41eb-8801-dd2e3f4a5b6c", created_at: new Date(Date.now()-1800000).toISOString(),
+      agent_id: "FinanceBot_v2",  intent: "issue_credit",     status: "auto_approved",
+      handled_by: "Decision Engine", context_message: "Small credit of 25 EUR for loyalty program",
+      metadata_payload: { amount: 25, platform: "slack" } },
+    { id: "c9d2b5e4-f3a7-42fc-9902-ee3f4a5b6c7d", created_at: new Date(Date.now()-7200000).toISOString(),
+      agent_id: "DevOps_Bot",     intent: "drop_database",    status: "human_rejected",
+      handled_by: "@admin_kostas", context_message: "Cleanup stale staging data from prod_db",
+      metadata_payload: { target: "prod_db", env: "production", platform: "github" } },
+    { id: "d1e3c6f5-a4b8-43fd-0013-ff4a5b6c7d8e", created_at: new Date(Date.now()-86400000).toISOString(),
+      agent_id: "FinanceBot_v2",  intent: "refund_customer",  status: "human_approved",
+      handled_by: "@maria_manager", context_message: "VIP customer CX-104 refund 1200 EUR — escalated",
+      metadata_payload: { amount: 1200, customer_id: "CX-104", platform: "slack" } },
+    { id: "e2f4d7a6-b5c9-44fe-1124-004a5b6c7d8e", created_at: new Date(Date.now()-3600000).toISOString(),
+      agent_id: "SupportAgent",   intent: "send_email",       status: "human_approved",
+      handled_by: "@nikos_admin", context_message: "Sending refund confirmation email to user@example.com",
+      metadata_payload: { recipient: "user@example.com", template: "refund_confirm", platform: "jira" } },
+    { id: "f3a5e8b7-c6da-45ff-2235-115b6c7d8e9f", created_at: new Date(Date.now()-5400000).toISOString(),
+      agent_id: "DevOps_Bot",     intent: "restart_service",  status: "auto_approved",
+      handled_by: "Decision Engine", context_message: "API gateway using 95% memory, auto-restart triggered",
+      metadata_payload: { service: "api-gateway", reason: "high_memory", platform: "github" } },
+];
+
+// ─── Helpers ───
+const AGENT_COLORS = ['#0a84ff','#30d158','#ff9f0a','#bf5af2','#ff453a','#64d2ff','#ffd60a'];
+const agentColorCache = {};
+function agentColor(name) {
+    if (!agentColorCache[name]) {
+        let h = 0;
+        for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
+        agentColorCache[name] = AGENT_COLORS[h % AGENT_COLORS.length];
+    }
+    return agentColorCache[name];
+}
+
+function agentInitials(name) {
+    return name.split(/[_\s-]/).map(p => p[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function avatarStyle(name, size = 44) {
+    const c = agentColor(name);
+    return `style="background:${c}22;border:1.5px solid ${c}55;width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${size*.3}px;font-weight:700;color:${c};flex-shrink:0"`;
+}
+
+// ─── Platform → badge ───
+const PLATFORM_MAP = {
+    slack:     { icon: 'fa-brands fa-slack',     color: '#E01E5A', bg: 'rgba(224,30,90,.15)',   label: 'Slack' },
+    github:    { icon: 'fa-brands fa-github',    color: '#f0f6fc', bg: 'rgba(240,246,252,.12)', label: 'GitHub' },
+    jira:      { icon: 'fa-brands fa-jira',      color: '#0052CC', bg: 'rgba(0,82,204,.2)',     label: 'Jira' },
+    teams:     { icon: 'fa-brands fa-microsoft', color: '#6264A7', bg: 'rgba(98,100,167,.2)',   label: 'Teams' },
+    telegram:  { icon: 'fa-brands fa-telegram',   color: '#26A5E4', bg: 'rgba(38,165,228,.15)',  label: 'Telegram' },
+    discord:   { icon: 'fa-brands fa-discord',   color: '#5865F2', bg: 'rgba(88,101,242,.2)',   label: 'Discord' },
+    pagerduty: { icon: 'fa-bell',                color: '#06AC38', bg: 'rgba(6,172,56,.15)',    label: 'PagerDuty' },
+    api:       { icon: 'fa-terminal',            color: '#94a3b8', bg: 'rgba(148,163,184,.1)',  label: 'API' },
+};
+function platformBadge(metadata) {
+    const key = (metadata?.platform || 'api').toLowerCase();
+    const p = PLATFORM_MAP[key] || PLATFORM_MAP['api'];
+    return `<span class="platform-badge" style="background:${p.bg};color:${p.color}">
+        <i class="${p.icon}" style="font-size:.75rem"></i> ${p.label}
+    </span>`;
+}
+function resolvedViaBadge(resolvedVia) {
+    if (!resolvedVia) return '';
+    const key = resolvedVia.toLowerCase();
+    const p = PLATFORM_MAP[key] || PLATFORM_MAP['api'];
+    return `<span class="platform-badge" style="background:${p.bg};color:${p.color};margin-left:4px" title="Resolved via ${p.label}">
+        <i class="${p.icon}" style="font-size:.75rem"></i> via ${p.label}
+    </span>`;
+}
+function notifiedBadges(req) {
+    let html = '';
+    if (req.notified_slack) {
+        const p = PLATFORM_MAP['slack'];
+        html += `<span class="platform-badge" style="background:${p.bg};color:${p.color};margin-left:4px" title="Sent to Slack">
+            <i class="${p.icon}" style="font-size:.75rem"></i> Slack
+        </span>`;
+    }
+    if (req.notified_telegram) {
+        const p = PLATFORM_MAP['telegram'];
+        html += `<span class="platform-badge" style="background:${p.bg};color:${p.color};margin-left:4px" title="Sent to Telegram">
+            <i class="${p.icon}" style="font-size:.75rem"></i> Telegram
+        </span>`;
+    }
+    if (!html) {
+        const p = PLATFORM_MAP['api'];
+        html = `<span class="platform-badge" style="background:${p.bg};color:${p.color};margin-left:4px">
+            <i class="${p.icon}" style="font-size:.75rem"></i> API
+        </span>`;
+    }
+    return html;
+}
+
+// ─── Intent → app icon ───
+const INTENT_MAP = {
+    refund:          { icon: 'fa-money-bill-wave', bg: '#30d15820', color: '#30d158', label: 'Finance App' },
+    credit:          { icon: 'fa-credit-card',     bg: '#0a84ff20', color: '#0a84ff', label: 'Billing App' },
+    issue_credit:    { icon: 'fa-credit-card',     bg: '#0a84ff20', color: '#0a84ff', label: 'Billing App' },
+    refund_customer: { icon: 'fa-money-bill-wave', bg: '#30d15820', color: '#30d158', label: 'Finance App' },
+    drop_database:   { icon: 'fa-database',        bg: '#ff453a20', color: '#ff453a', label: 'Database Console' },
+    db_drop:         { icon: 'fa-database',        bg: '#ff453a20', color: '#ff453a', label: 'Database Console' },
+    deploy:          { icon: 'fa-rocket',           bg: '#bf5af220', color: '#bf5af2', label: 'Deploy Service' },
+    restart_service: { icon: 'fa-rotate',           bg: '#ff9f0a20', color: '#ff9f0a', label: 'Ops Console' },
+    send_email:      { icon: 'fa-envelope',         bg: '#64d2ff20', color: '#64d2ff', label: 'Email Service' },
+    delete_user:     { icon: 'fa-user-slash',       bg: '#ff453a20', color: '#ff453a', label: 'User Service' },
+    create_invoice:  { icon: 'fa-file-invoice',     bg: '#ffd60a20', color: '#ffd60a', label: 'Invoice App' },
+};
+function intentInfo(intent) {
+    const key = Object.keys(INTENT_MAP).find(k => intent.toLowerCase().includes(k));
+    return key ? INTENT_MAP[key] : { icon: 'fa-terminal', bg: '#ffffff10', color: '#aeaeb2', label: 'MCP Agent' };
+}
+
+function statusUI(status) {
+    switch (status) {
+        case 'pending':
+            return { cls: 'st-pending',  html: `<div class="pending-dots"><span></span><span></span><span></span></div> Awaiting approval` };
+        case 'human_approved':
+            return { cls: 'st-approved', html: `<i class="fas fa-check-double"></i> Approved` };
+        case 'auto_approved':
+            return { cls: 'st-auto',     html: `<i class="fas fa-bolt"></i> Auto-Approved` };
+        case 'human_rejected':
+            return { cls: 'st-rejected', html: `<i class="fas fa-xmark"></i> Rejected` };
+        case 'timeout':
+            return { cls: 'st-timeout',  html: `<i class="fas fa-hourglass-end"></i> Timeout` };
+        case 'escalated':
+            return { cls: 'st-escalated', html: `<i class="fas fa-arrow-up-right-from-square"></i> Escalated` };
+        default:
+            return { cls: 'st-timeout',  html: status };
+    }
+}
+
+function relativeTime(dateStr) {
+    const diff = (Date.now() - new Date(dateStr)) / 1000;
+    if (diff < 60)   return 'just now';
+    if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+    if (diff < 86400)return `${Math.floor(diff/3600)}h ago`;
+    return `${Math.floor(diff/86400)}d ago`;
+}
+
+function formatTime(dateStr) {
+    return new Date(dateStr).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+function formatDay(dateStr) {
+    const d = new Date(dateStr);
+    const today = new Date();
+    if (d.toDateString() === today.toDateString()) return 'Today';
+    const yesterday = new Date(today); yesterday.setDate(today.getDate()-1);
+    if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+}
+
+// ─── Render sidebar ───
+function renderSidebar(requests, filterText = '') {
+    const byAgent = {};
+    for (const r of requests) {
+        if (!byAgent[r.agent_id]) byAgent[r.agent_id] = [];
+        byAgent[r.agent_id].push(r);
+    }
+
+    const list = document.getElementById('agent-list');
+    const agentNames = Object.keys(byAgent).filter(n =>
+        !filterText || n.toLowerCase().includes(filterText.toLowerCase())
+    );
+
+    if (!agentNames.length) {
+        list.innerHTML = `<div style="text-align:center;color:var(--text-3);font-size:.8rem;padding:24px 0">No agents</div>`;
+        return;
+    }
+
+    // Sort: pending first, then by latest message
+    agentNames.sort((a, b) => {
+        const aPending = byAgent[a].some(r => r.status === 'pending') ? 1 : 0;
+        const bPending = byAgent[b].some(r => r.status === 'pending') ? 1 : 0;
+        if (bPending !== aPending) return bPending - aPending;
+        const aTime = Math.max(...byAgent[a].map(r => new Date(r.created_at)));
+        const bTime = Math.max(...byAgent[b].map(r => new Date(r.created_at)));
+        return bTime - aTime;
+    });
+
+    list.innerHTML = agentNames.map(name => {
+        const msgs = byAgent[name].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+        const latest = msgs[0];
+        const pending = msgs.filter(r => r.status === 'pending').length;
+        const hasPending = pending > 0;
+        const info = intentInfo(latest.intent);
+        const isActive = selectedAgent === name;
+
+        const ts = trustScores[name];
+        const trustScore = ts ? ts.score : 50;
+        const trustColor = trustScore >= 70 ? 'var(--green)' : trustScore >= 40 ? 'var(--yellow)' : 'var(--red)';
+
+        return `<div class="agent-row${isActive ? ' active' : ''}" onclick="selectAgent('${name}')">
+            <div class="agent-av${hasPending ? ' has-pending' : ''}" ${avatarStyle(name, 44)}>
+                ${agentInitials(name)}
+            </div>
+            <div class="agent-info">
+                <div class="agent-name">${name}</div>
+                <div class="agent-preview">
+                    <i class="fas ${info.icon}" style="font-size:.65rem;margin-right:4px;color:${info.color}"></i>${latest.intent}
+                </div>
+                <div class="trust-bar-wrap">
+                    <div class="trust-bar"><div class="trust-bar-fill" style="width:${trustScore}%;background:${trustColor}"></div></div>
+                    <span class="trust-score-label" style="color:${trustColor}">${trustScore}</span>
+                </div>
+            </div>
+            <div class="agent-meta">
+                <div class="agent-time">${relativeTime(latest.created_at)}</div>
+                ${pending > 0 ? `<div class="unread-badge">${pending}</div>` : ''}
+            </div>
+        </div>`;
+    }).join('<div class="sidebar-divider"></div>');
+}
+
+// ─── Render chat ───
+function selectAgent(name) {
+    selectedAgent = name;
+    renderSidebar(allRequests, document.getElementById('search-input').value);
+    renderChat(name);
+    closeSidebar();
+}
+
+function renderChat(agentName) {
+    const feed = document.getElementById('messages-feed');
+    const header = document.getElementById('chat-header');
+    const requests = allRequests
+        .filter(r => r.agent_id === agentName)
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+    const color = agentColor(agentName);
+    const totalCount = requests.length;
+    const pendingCount = requests.filter(r => r.status === 'pending').length;
+
+    header.innerHTML = `
+        <div ${avatarStyle(agentName, 36)}>${agentInitials(agentName)}</div>
+        <div class="chat-header-info">
+            <div class="chat-header-name">${agentName}</div>
+            <div class="chat-header-sub">
+                ${totalCount} requests${pendingCount > 0 ? ` · <span style="color:var(--yellow)">${pendingCount} pending</span>` : ''}
+                ${(() => { const t = trustScores[agentName]; const s = t ? t.score : 50; const c = s >= 70 ? 'var(--green)' : s >= 40 ? 'var(--yellow)' : 'var(--red)'; return ` · <span style="color:${c};font-weight:700">Trust: ${s}/100</span>`; })()}
+            </div>
+        </div>
+        <div class="chat-header-actions">
+            <button class="filter-btn ${showFavoritesOnly ? 'active' : ''}" onclick="toggleFavFilter()" title="Favorites">
+                <i class="fas fa-star"></i> Starred
+            </button>
+            <button class="icon-btn"><i class="fas fa-circle-info"></i></button>
+        </div>
+    `;
+
+    if (!requests.length) {
+        feed.innerHTML = `<div class="feed-empty"><i class="fas fa-inbox"></i><p>No messages.</p></div>`;
+        return;
+    }
+
+    // Group by day
+    const groups = {};
+    for (const r of requests) {
+        const day = formatDay(r.created_at);
+        if (!groups[day]) groups[day] = [];
+        groups[day].push(r);
+    }
+
+    let html = '';
+    for (const [day, msgs] of Object.entries(groups)) {
+        html += `<div class="date-sep">${day}</div>`;
+        for (const req of msgs) {
+            if (showFavoritesOnly && !favorites.has(req.id)) continue;
+            const info = intentInfo(req.intent);
+            const st = statusUI(req.status);
+            const metaEntries = req.metadata_payload
+                ? Object.entries(req.metadata_payload)
+                    .filter(([k]) => k !== 'platform')
+                    .map(([k,v]) => `<span class="meta-chip">${k}: ${v}</span>`).join('')
+                : '';
+            const reqIdShort = req.id.substring(0,8);
+            const isStarred = favorites.has(req.id);
+            const isPending = req.status === 'pending';
+            const isChecked = selectedIds.has(req.id);
+
+            // SLA urgency
+            let slaClass = '';
+            let slaBadge = '';
+            if (req.status === 'escalated') {
+                slaClass = 'sla-escalated';
+                slaBadge = `<span class="sla-badge critical"><i class="fas fa-arrow-up-right-from-square"></i> ESCALATED</span>`;
+            } else if (isPending) {
+                const ageSec = (Date.now() - new Date(req.created_at)) / 1000;
+                if (ageSec >= SLA_CRIT_SEC) {
+                    slaClass = 'sla-critical';
+                    slaBadge = `<span class="sla-badge critical"><i class="fas fa-fire"></i> SLA!</span>`;
+                } else if (ageSec >= SLA_WARN_SEC) {
+                    slaClass = 'sla-warn';
+                    slaBadge = `<span class="sla-badge warn"><i class="fas fa-clock"></i> SLA</span>`;
+                }
+            }
+
+            html += `
+            <div class="msg-row">
+                ${isPending ? `<input type="checkbox" class="msg-checkbox" data-id="${req.id}" ${isChecked ? 'checked' : ''} onchange="toggleSelect('${req.id}', this.checked)">` : ''}
+                <div class="msg-av" ${avatarStyle(req.agent_id, 32)}>${agentInitials(req.agent_id)}</div>
+                <div class="msg-content">
+                    <div class="msg-sender">${req.agent_id}</div>
+                    <div class="msg-bubble ${slaClass}">
+                        <!-- Star -->
+                        <button class="msg-star ${isStarred ? 'starred' : ''}" onclick="toggleFav('${req.id}', this)" title="Favorite">
+                            <i class="fas fa-star"></i>
+                        </button>
+                        <!-- App Icon Bar -->
+                        <div class="app-bar">
+                            <div class="app-icon" style="background:${info.bg}">
+                                <i class="fas ${info.icon}" style="color:${info.color}"></i>
+                            </div>
+                            <div class="app-icon-info">
+                                <div class="app-icon-name" style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap">${info.label} ${req.resolved_via ? resolvedViaBadge(req.resolved_via) : notifiedBadges(req)}</div>
+                                <div class="app-icon-sub">Approval request · #${reqIdShort}${slaBadge}</div>
+                            </div>
+                            <button class="icon-btn" onclick="event.stopPropagation();openPayloadModal('${req.id}')" title="View Details" style="margin-left:auto;width:28px;height:28px;font-size:.75rem">
+                                <i class="fas fa-code"></i>
+                            </button>
+                        </div>
+                        <!-- Body -->
+                        <div class="msg-body">
+                            <div class="msg-intent">${req.intent}</div>
+                            ${req.context_message ? `<div class="msg-context">${req.context_message}</div>` : ''}
+                            ${req.blast_radius ? `<div class="blast-radius-box">${req.blast_radius}</div>` : ''}
+                            ${metaEntries ? `<div class="msg-meta">${metaEntries}</div>` : ''}
+                        </div>
+                        <!-- Footer -->
+                        <div class="msg-footer">
+                            <span class="msg-time">${formatTime(req.created_at)}${req.handled_by ? ' · ' + req.handled_by : ''}</span>
+                            <span class="msg-status ${st.cls}">${st.html}</span>
+                        </div>
+                        ${isPending ? `
+                        <div class="action-bar">
+                            <button class="action-btn btn-approve" onclick="resolveRequest('${req.id}', 'approve', this)">
+                                <i class="fas fa-check"></i> Approve
+                            </button>
+                            <button class="action-btn btn-reject" onclick="resolveRequest('${req.id}', 'reject', this)">
+                                <i class="fas fa-xmark"></i> Reject
+                            </button>
+                        </div>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        }
+    }
+
+    feed.innerHTML = html;
+    feed.scrollTop = feed.scrollHeight;
+}
+
+// ─── Update stats ───
+function updateStats(requests) {
+    document.getElementById('stat-total').textContent   = requests.length;
+    document.getElementById('stat-pending').textContent = requests.filter(r => r.status === 'pending').length;
+    document.getElementById('stat-ok').textContent      = requests.filter(r => r.status === 'human_approved' || r.status === 'auto_approved').length;
+}
+
+// ─── Filter agents ───
+function filterAgents(q) {
+    renderSidebar(allRequests, q);
+}
+
+// ─── Favorites ───
+function toggleFav(id, btnEl) {
+    if (favorites.has(id)) { favorites.delete(id); btnEl.classList.remove('starred'); }
+    else { favorites.add(id); btnEl.classList.add('starred'); }
+    localStorage.setItem('gov_favorites', JSON.stringify([...favorites]));
+}
+
+function toggleFavFilter() {
+    showFavoritesOnly = !showFavoritesOnly;
+    if (selectedAgent) renderChat(selectedAgent);
+}
+
+// ─── Bulk Select ───
+function toggleSelect(id, checked) {
+    if (checked) selectedIds.add(id); else selectedIds.delete(id);
+    updateBulkBar();
+}
+
+function updateBulkBar() {
+    const bar = document.getElementById('bulk-bar');
+    if (selectedIds.size > 0) {
+        bar.style.display = 'flex';
+        document.getElementById('bulk-count').textContent = `${selectedIds.size} selected`;
+    } else {
+        bar.style.display = 'none';
+    }
+}
+
+function clearSelection() {
+    selectedIds.clear();
+    updateBulkBar();
+    if (selectedAgent) renderChat(selectedAgent);
+}
+
+async function bulkResolve(action) {
+    const ids = [...selectedIds];
+    const bar = document.getElementById('bulk-bar');
+    bar.querySelectorAll('button').forEach(b => b.disabled = true);
+    document.getElementById('bulk-count').textContent = `Processing ${ids.length}...`;
+
+    for (const id of ids) {
+        try {
+            await fetch(`${API_BASE}/api/v1/requests/${id}/resolve`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action, handled_by: 'dashboard_user' })
+            });
+        } catch { /* skip failed */ }
+    }
+    selectedIds.clear();
+    updateBulkBar();
+    await fetchRequests();
+}
+
+// ─── Resolve (Approve / Reject) ───
+async function resolveRequest(requestId, action, btnEl) {
+    // Disable both buttons in the action bar
+    const actionBar = btnEl.closest('.action-bar');
+    actionBar.querySelectorAll('button').forEach(b => b.disabled = true);
+    btnEl.innerHTML = `<i class="fas fa-circle-notch spin"></i> ${action === 'approve' ? 'Approving...' : 'Rejecting...'}`;
+
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/requests/${requestId}/resolve`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, handled_by: 'dashboard_user' })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert(err.detail || 'Error resolving request');
+            actionBar.querySelectorAll('button').forEach(b => b.disabled = false);
+            return;
+        }
+        // Refresh everything
+        await fetchRequests();
+    } catch {
+        alert('Failed to connect to API');
+        actionBar.querySelectorAll('button').forEach(b => b.disabled = false);
+    }
+}
+
+// ─── Fetch ───
+async function fetchRequests() {
+    const icon = document.getElementById('refresh-icon');
+    icon.classList.add('spin');
+
+    try {
+        const res = await fetch(API_URL);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        allRequests = Array.isArray(data) ? data : (data.requests || []);
+    } catch {
+        allRequests = mockData;
+    } finally {
+        setTimeout(() => icon.classList.remove('spin'), 400);
+    }
+
+    updateStats(allRequests);
+    renderSidebar(allRequests, document.getElementById('search-input').value);
+
+    if (selectedAgent) renderChat(selectedAgent);
+    else if (allRequests.length) {
+        // auto-select first agent
+        const firstAgent = allRequests.sort((a,b) =>
+            new Date(b.created_at) - new Date(a.created_at)
+        )[0].agent_id;
+        selectAgent(firstAgent);
+    }
+}
+
+// ─── Payload Modal ───
+function openPayloadModal(reqId) {
+    const req = allRequests.find(r => r.id === reqId);
+    if (!req) return;
+    const modal = document.getElementById('payload-modal');
+    const body = document.getElementById('modal-body');
+
+    const ts = trustScores[req.agent_id];
+    const score = ts ? ts.score : 50;
+    const scoreColor = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--yellow)' : 'var(--red)';
+    const st = statusUI(req.status);
+
+    body.innerHTML = `
+        <div class="modal-section">
+            <div class="modal-section-title">Request Info</div>
+            <div class="modal-field"><span class="modal-field-label">Request ID</span><span class="modal-field-value" style="font-family:'JetBrains Mono',monospace;font-size:.75rem">${req.id}</span></div>
+            <div class="modal-field"><span class="modal-field-label">Agent</span><span class="modal-field-value">${req.agent_id} <span style="color:${scoreColor};font-weight:700;margin-left:6px">Trust: ${score}/100</span></span></div>
+            <div class="modal-field"><span class="modal-field-label">Intent</span><span class="modal-field-value" style="font-weight:700">${req.intent}</span></div>
+            <div class="modal-field"><span class="modal-field-label">Priority</span><span class="modal-field-value">${req.priority}</span></div>
+            <div class="modal-field"><span class="modal-field-label">Status</span><span class="msg-status ${st.cls}" style="font-size:.78rem">${st.html}</span></div>
+            ${req.blast_radius ? `<div class="modal-field"><span class="modal-field-label">AI Risk Assessment</span><span class="modal-field-value" style="font-weight:600">${req.blast_radius}</span></div>` : ''}
+            <div class="modal-field"><span class="modal-field-label">Created</span><span class="modal-field-value">${new Date(req.created_at).toLocaleString('en-GB')}</span></div>
+            ${req.handled_by ? `<div class="modal-field"><span class="modal-field-label">Handled By</span><span class="modal-field-value">${req.handled_by}</span></div>` : ''}
+            ${req.resolved_via ? `<div class="modal-field"><span class="modal-field-label">Resolved Via</span><span class="modal-field-value">${resolvedViaBadge(req.resolved_via)}</span></div>` : ''}
+            ${req.resolved_at ? `<div class="modal-field"><span class="modal-field-label">Resolved</span><span class="modal-field-value">${new Date(req.resolved_at).toLocaleString('en-GB')}</span></div>` : ''}
+        </div>
+        ${req.context_message ? `
+        <div class="modal-section">
+            <div class="modal-section-title">Context Message</div>
+            <div style="font-size:.82rem;color:var(--text-1);padding:8px 0">${req.context_message}</div>
+        </div>` : ''}
+        <div class="modal-section">
+            <div class="modal-section-title">Payload (What the agent wants to execute)</div>
+            <div class="modal-json">${syntaxHighlight(JSON.stringify(req.metadata_payload || {}, null, 2))}</div>
+        </div>
+    `;
+    modal.style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('payload-modal').style.display = 'none';
+}
+
+function syntaxHighlight(json) {
+    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, m => {
+        let cls = 'json-num';
+        if (/^"/.test(m)) { cls = /:$/.test(m) ? 'json-key' : 'json-str'; }
+        else if (/true|false/.test(m)) { cls = 'json-bool'; }
+        return `<span class="${cls}">${m}</span>`;
+    });
+}
+
+// ─── Simulator ───
+function toggleSimulator() {
+    const panel = document.getElementById('sim-panel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+async function runSimulation() {
+    const intent = document.getElementById('sim-intent').value.trim();
+    if (!intent) { alert('Enter an intent'); return; }
+    const amountVal = document.getElementById('sim-amount').value;
+    const metadata = amountVal ? { amount: parseFloat(amountVal) } : null;
+
+    const resultDiv = document.getElementById('sim-result');
+    resultDiv.className = 'sim-result show';
+    resultDiv.innerHTML = '<i class="fas fa-circle-notch spin" style="color:var(--purple)"></i> Simulating...';
+
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/simulate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ intent, metadata_payload: metadata })
+        });
+        const data = await res.json();
+
+        const verdictClass = data.verdict === 'auto_approved' ? 'v-approved' : 'v-pending';
+        const verdictIcon = data.verdict === 'auto_approved' ? 'fa-bolt' : 'fa-clock';
+        const rulesHtml = data.rules_checked.map(r => `
+            <div class="sim-rule">
+                <div><span class="sim-rule-name">${r.rule}</span> — <span class="sim-rule-match ${r.matched ? 'yes' : 'no'}">${r.matched ? 'MATCHED' : 'NOT MATCHED'}</span></div>
+                <div class="sim-rule-detail">${r.detail}</div>
+            </div>
+        `).join('');
+
+        resultDiv.innerHTML = `
+            <div class="sim-verdict ${verdictClass}"><i class="fas ${verdictIcon}"></i> ${data.explanation}</div>
+            <div style="font-size:.72rem;color:var(--text-3);margin-bottom:6px">Canonical intent: <strong>${data.canonical_intent}</strong></div>
+            ${rulesHtml}
+        `;
+    } catch {
+        resultDiv.innerHTML = '<span style="color:var(--red)">Failed to connect to API</span>';
+    }
+}
+
+// ─── Fetch Trust Scores ───
+async function fetchTrustScores() {
+    try {
+        const res = await fetch(`${API_BASE}/api/v1/trust-scores`);
+        if (res.ok) {
+            const data = await res.json();
+            trustScores = data.agents || {};
+        }
+    } catch { /* silent */ }
+}
+
+// ─── Auto-Escalation Check ───
+async function checkEscalation() {
+    try {
+        await fetch(`${API_BASE}/api/v1/escalate`, { method: 'POST' });
+    } catch { /* silent */ }
+}
+
+fetchRequests();
+fetchTrustScores();
+setInterval(fetchRequests, 5000);
+setInterval(fetchTrustScores, 10000);
+setInterval(checkEscalation, 10000);
+</script>
+</body>
+</html>
